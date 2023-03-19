@@ -5,6 +5,4 @@ edition = "2021"
 license = "MIT"
 description = "An experimental crate for constructing efficient virtual data structures."
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
