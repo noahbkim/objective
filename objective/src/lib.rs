@@ -77,7 +77,7 @@ impl Instance {
                 Ok(&*self.data.as_ptr().cast::<U>())
             }
         } else {
-            Err(Invalid {})
+            Err(InvalidCast {})
         }
     }
 
@@ -88,7 +88,7 @@ impl Instance {
                 Ok(&mut *self.data.as_mut_ptr().cast::<U>())
             }
         } else {
-            Err(Invalid {})
+            Err(InvalidCast {})
         }
     }
 }
