@@ -1,7 +1,7 @@
-use std::any::TypeId;
+use crate::class::lens::Lens;
 use crate::class::Class;
 use crate::instance::Instance;
-
+use std::any::TypeId;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -12,7 +12,7 @@ pub struct View {
 }
 
 impl View {
-    pub fn new(instance: Arc<Instance>) -> View {
+    pub fn of(instance: Arc<Instance>) -> View {
         View {
             class: instance.class.clone(),
             instance,
@@ -20,22 +20,44 @@ impl View {
         }
     }
 
-    pub fn downcast_ref<U: 'static>(&self) -> Option<&U> {
+    fn zoom(self, part: (Arc<dyn Class>, usize)) -> View {
+        View {
+            instance: self.instance,
+            class: part.0,
+            offset: self.offset + part.1,
+        }
+    }
+
+    pub fn apply(lens: &Lens, instance: Arc<Instance>) -> Option<View> {
+        if lens.class == instance.class {
+            Some(View {
+                instance,
+                class: lens.class.clone(),
+                offset: lens.offset,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn read<U: 'static>(&self) -> Option<&U> {
         // Invariant: construct() must have been called before now
         if self.class.id() == Some(TypeId::of::<U>()) {
             unsafe {
-                Some(&*self.data.read().unwrap().cast::<U>())
+                let data = self.instance.data.read().unwrap();
+                Some(&*data.add(self.offset).cast::<U>())
             }
         } else {
             None
         }
     }
 
-    pub fn downcast_mut<U: 'static>(&mut self) -> Option<&mut U> {
+    pub fn write<U: 'static>(&mut self) -> Option<&mut U> {
         // Invariant: construct() must have been called before now
         if self.class.id() == Some(TypeId::of::<U>()) {
             unsafe {
-                Some(&mut *self.data.write().unwrap().cast::<U>())
+                let data = self.instance.data.read().unwrap();
+                Some(&mut *data.add(self.offset).cast::<U>())
             }
         } else {
             None
@@ -44,30 +66,26 @@ impl View {
 }
 
 pub trait Viewable {
-    fn view(&self) -> View;
-    fn attr(self, name: &String) -> Option<View>;
+    fn attr(self, name: &str) -> Option<View>;
     fn item(self, index: usize) -> Option<View>;
 }
 
 impl Viewable for View {
-    fn view(&self) -> View {
-        self.clone()
-    }
-
-    fn attr(self, name: &String) -> Option<View> {
-        if let Some((class, offset)) = self.class.attr(name) {
-            Some(View {
-                instance: self.instance.clone(),
-                class,
-                offset: self.offset + offset,
-            })
-        } else {
-            None
-        }
+    fn attr(self, name: &str) -> Option<View> {
+        self.class.attr(name).map(|part| self.zoom(part))
     }
 
     fn item(self, index: usize) -> Option<View> {
-        todo!()
+        self.class.item(index).map(|part| self.zoom(part))
     }
 }
 
+impl Viewable for Option<View> {
+    fn attr(self, name: &str) -> Option<View> {
+        self.and_then(|view| view.attr(name))
+    }
+
+    fn item(self, index: usize) -> Option<View> {
+        self.and_then(|view| view.item(index))
+    }
+}

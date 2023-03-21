@@ -1,8 +1,7 @@
 use crate::class::Class;
-use crate::instance::Instance;
-
-use std::sync::Arc;
 use crate::instance::view::View;
+use crate::instance::Instance;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Lens {
@@ -28,17 +27,8 @@ impl Lens {
         }
     }
 
-    // TODO: result
-    pub fn apply(&self, instance: Instance) -> Option<View> {
-        if instance.class == self.origin {
-            Some(View {
-                instance,
-                class: self.class,
-                offset: self.offset,
-            })
-        } else {
-            None
-        }
+    pub fn apply(&self, instance: Arc<Instance>) -> Option<View> {
+        View::apply(self, instance)
     }
 }
 
