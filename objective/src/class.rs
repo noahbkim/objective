@@ -4,7 +4,7 @@ pub mod object;
 pub mod value;
 
 use std::alloc::Layout;
-use std::any::{Any, TypeId};
+use std::any::TypeId;
 use std::sync::Arc;
 
 // Unsafe: this trait is fucked up bruh
@@ -15,19 +15,15 @@ pub unsafe trait Class {
     fn size(&self) -> usize;
     fn align(&self) -> usize;
     fn layout(&self) -> Layout;
-    fn id(&self) -> Option<TypeId>;
+    fn name(&self) -> &str;
 
-    fn upcast(&self) -> &dyn Any {
-        return &self;
-    }
-
+    unsafe fn id(&self) -> Option<TypeId> { None }
     unsafe fn construct(&self, data: *mut u8);
     unsafe fn destroy(&self, data: *mut u8);
 
     fn attr(&self, _name: &str) -> Option<(Arc<dyn Class>, usize)> {
         None
     }
-
     fn item(&self, _index: usize) -> Option<(Arc<dyn Class>, usize)> {
         None
     }

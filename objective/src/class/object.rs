@@ -1,6 +1,5 @@
 use crate::class::Class;
 use std::alloc::Layout;
-use std::any::TypeId;
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -55,8 +54,8 @@ unsafe impl Class for ObjectClass {
         Layout::from_size_align(self.size, self.align()).unwrap()
     }
 
-    fn id(&self) -> Option<TypeId> {
-        None
+    fn name(&self) -> &str {
+        self.name.as_ref()
     }
 
     unsafe fn construct(&self, data: *mut u8) {

@@ -1,5 +1,6 @@
 pub mod class;
 pub mod instance;
+pub mod error;
 
 #[cfg(test)]
 mod tests {

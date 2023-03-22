@@ -1,7 +1,8 @@
 use crate::class::lens::Lens;
 use crate::class::Class;
-use crate::instance::Instance;
-use std::any::TypeId;
+use crate::error::TypeError;
+use crate::instance::{read, write, Instance};
+use std::borrow::Borrow;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -29,7 +30,7 @@ impl View {
     }
 
     pub fn apply(lens: &Lens, instance: Arc<Instance>) -> Option<View> {
-        if lens.class == instance.class {
+        if std::ptr::eq(lens.origin.as_ref(), instance.class.as_ref()) {
             Some(View {
                 instance,
                 class: lens.class.clone(),
@@ -40,27 +41,15 @@ impl View {
         }
     }
 
-    pub fn read<U: 'static>(&self) -> Option<&U> {
-        // Invariant: construct() must have been called before now
-        if self.class.id() == Some(TypeId::of::<U>()) {
-            unsafe {
-                let data = self.instance.data.read().unwrap();
-                Some(&*data.add(self.offset).cast::<U>())
-            }
-        } else {
-            None
+    pub fn read<U: 'static>(&self) -> Result<&U, TypeError> {
+        unsafe {
+            read(self.instance.borrow(), self.class.borrow(), self.offset)
         }
     }
 
-    pub fn write<U: 'static>(&mut self) -> Option<&mut U> {
-        // Invariant: construct() must have been called before now
-        if self.class.id() == Some(TypeId::of::<U>()) {
-            unsafe {
-                let data = self.instance.data.read().unwrap();
-                Some(&mut *data.add(self.offset).cast::<U>())
-            }
-        } else {
-            None
+    pub fn write<U: 'static>(&mut self) -> Result<&mut U, TypeError> {
+        unsafe {
+            write(self.instance.borrow(), self.class.borrow(), self.offset)
         }
     }
 }

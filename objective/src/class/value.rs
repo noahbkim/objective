@@ -1,6 +1,6 @@
 use crate::class::Class;
 use std::alloc::Layout;
-use std::any::TypeId;
+use std::any::{type_name, TypeId};
 use std::marker::PhantomData;
 use std::mem::{align_of, size_of};
 
@@ -33,7 +33,11 @@ where
         Layout::new::<T>()
     }
 
-    fn id(&self) -> Option<TypeId> {
+    fn name(&self) -> &str {
+        type_name::<T>()
+    }
+
+    unsafe fn id(&self) -> Option<TypeId> {
         Some(TypeId::of::<T>())
     }
 
