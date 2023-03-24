@@ -1,49 +1,19 @@
 use crate::class::Class;
-use crate::instance::view::View;
-use crate::instance::Instance;
-use crate::error::Result;
+use crate::error::{Error, Result};
+use std::fmt::Debug;
 use std::sync::Arc;
 
-#[derive(Clone)]
 pub struct Lens {
-    pub origin: Arc<dyn Class>,
     pub class: Arc<dyn Class>,
     pub offset: usize,
 }
 
-impl Lens {
-    pub fn of(class: Arc<dyn Class>) -> Lens {
-        Lens {
-            origin: class.clone(),
-            class,
-            offset: 0,
-        }
+pub unsafe trait LensAccessor: Debug {
+    fn attr(&self, _name: &str) -> Result<Lens> {
+        Err(Error::TypeError(format!("Class {:?} does not support attribute access!", self)))
     }
 
-    fn zoom(self, part: (Arc<dyn Class>, usize)) -> Lens {
-        Lens {
-            origin: self.origin,
-            class: part.0,
-            offset: self.offset + part.1,
-        }
-    }
-
-    pub fn apply(&self, instance: Arc<Instance>) -> Result<View> {
-        View::apply(self, instance)
-    }
-}
-
-trait Focal {
-    fn attr(self, name: &str) -> Result<Lens>;
-    fn item(self, index: usize) -> Result<Lens>;
-}
-
-impl Focal for Lens {
-    fn attr(self, name: &str) -> Result<Lens> {
-        self.class.attr(name).map(|part| self.zoom(part))
-    }
-
-    fn item(self, index: usize) -> Result<Lens> {
-        self.class.item(index).map(|part| self.zoom(part))
+    fn item(&self, _index: usize) -> Result<Lens> {
+        Err(Error::TypeError(format!("Class {:?} does not support index access!", self)))
     }
 }

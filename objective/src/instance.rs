@@ -1,63 +1,13 @@
 pub mod view;
 
 use crate::class::Class;
+use crate::class::view::View;
 use crate::error::{Error, Result};
-use crate::instance::view::{View, Viewable};
+use crate::instance::view::{ReadView, ReadViewable, WriteView, WriteViewable};
 use std::alloc::{alloc, dealloc};
 use std::any::{type_name, TypeId};
+use std::borrow::Borrow;
 use std::sync::{Arc, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
-
-pub struct Read<'a> {
-    class: Arc<dyn Class>,
-    guard: RwLockReadGuard<'a, *mut u8>,
-    offset: usize,
-}
-
-impl<'a> Read<'a> {
-    pub fn cast<U: 'static>(&self) -> Result<&U> {
-        if let Some(type_id) = unsafe { self.class.id() } {
-            if type_id == TypeId::of::<U>() {
-                unsafe {
-                    Ok(&*self.guard.add(self.offset).cast::<U>())
-                }
-            } else {
-                Err(Error::ValueError(format!(
-                    "Cannot cast underlying type {} to {}!", type_name::<U>(), self.class.name(),
-                )))
-            }
-        } else {
-            Err(Error::TypeError(format!(
-                "Cannot cast untyped class {}!", self.class.name()
-            )))
-        }
-    }
-}
-
-pub struct Write<'a>{
-    class: Arc<dyn Class>,
-    guard: RwLockWriteGuard<'a, *mut u8>,
-    offset: usize,
-}
-
-impl<'a> Write<'a> {
-    pub fn cast<U: 'static>(&self) -> Result<&mut U> {
-        if let Some(type_id) = unsafe { self.class.id() } {
-            if type_id == TypeId::of::<U>() {
-                unsafe {
-                    Ok(&mut *self.guard.add(self.offset).cast::<U>())
-                }
-            } else {
-                Err(Error::ValueError(format!(
-                    "Cannot cast underlying type {} to {}!", type_name::<U>(), self.class.name(),
-                )))
-            }
-        } else {
-            Err(Error::TypeError(format!(
-                "Cannot cast untyped class {}!", self.class.name()
-            )))
-        }
-    }
-}
 
 pub struct Instance {
     class: Arc<dyn Class>,
@@ -78,46 +28,112 @@ impl Instance {
         }
     }
 
-    unsafe fn read_at(
-        &self,
-        class: Arc<dyn Class>,
-        offset: usize,
-    ) -> std::result::Result<Read, PoisonError<Read>> {
+    pub fn read(&self) -> std::result::Result<InstanceReadGuard, PoisonError<InstanceReadGuard>> {
         match self.data.read() {
-            Ok(guard) => Ok(Read { class, guard, offset }),
-            Err(error) => Err(PoisonError::new(Read {
-                class,
-                guard: error.into_inner(),
-                offset,
+            Ok(data) => Ok(InstanceReadGuard {
+                class: self.class.clone(),
+                data,
+            }),
+            Err(error) => Err(PoisonError::new(InstanceReadGuard {
+                class: self.class.clone(),
+                data: error.into_inner(),
             })),
         }
     }
 
-    pub fn read(&self) -> std::result::Result<Read, PoisonError<Read>> {
-        unsafe {
-            self.read_at(self.class.clone(), 0)
-        }
-    }
-
-    unsafe fn write_at(
-        &self,
-        class: Arc<dyn Class>,
-        offset: usize,
-    ) -> std::result::Result<Write, PoisonError<Write>> {
+    pub fn write(&self) -> std::result::Result<InstanceWriteGuard, PoisonError<InstanceWriteGuard>> {
         match self.data.write() {
-            Ok(guard) => Ok(Write { class, guard, offset }),
-            Err(error) => Err(PoisonError::new(Write {
-                class,
-                guard: error.into_inner(),
-                offset,
+            Ok(data) => Ok(InstanceWriteGuard {
+                class: self.class.clone(),
+                data,
+            }),
+            Err(error) => Err(PoisonError::new(InstanceWriteGuard {
+                class: self.class.clone(),
+                data: error.into_inner(),
             })),
         }
     }
+}
 
-    pub fn write(&self) -> std::result::Result<Write, PoisonError<Write>> {
-        unsafe {
-            self.write_at(self.class.clone(), 0)
+pub struct InstanceReadGuard<'a> {
+    class: Arc<dyn Class>,
+    data: RwLockReadGuard<'a, *mut u8>,
+}
+
+impl<'a> InstanceReadGuard<'a> {
+    unsafe fn cast_at<'b, 'c: 'a, U: 'static>(&self, class: &'b dyn Class, offset: usize) -> Result<&'c U> {
+        if let Some(type_id) = class.value() {
+            if type_id == TypeId::of::<U>() {
+                Ok(&*self.data.add(offset).cast::<U>())
+            } else {
+                Err(Error::ValueError(format!(
+                    "Cannot cast underlying type {} to {:?}!",
+                    type_name::<U>(),
+                    class,
+                )))
+            }
+        } else {
+            Err(Error::TypeError(format!("Cannot cast untyped class {:?}!", class)))
         }
+    }
+
+    pub fn cast<U: 'static>(&self) -> Result<&U> {
+        unsafe {
+            self.cast_at(self.class.borrow(), 0)
+        }
+    }
+
+    pub fn attr<'b>(&'b self, name: &str) -> Result<ReadView<'a, 'b>> {
+        ReadView::of(self).attr(name)
+    }
+
+    pub fn item<'b>(&'b self, index: usize) -> Result<ReadView<'a, 'b>> {
+        ReadView::of(self).item(index)
+    }
+
+    pub fn through<'b>(&'b self, lens: &View) -> Result<ReadView<'a, 'b>> {
+        ReadView::apply(lens, self)
+    }
+}
+
+pub struct InstanceWriteGuard<'a> {
+    class: Arc<dyn Class>,
+    data: RwLockWriteGuard<'a, *mut u8>,
+}
+
+impl<'a> InstanceWriteGuard<'a> {
+    unsafe fn cast_at<'b, 'c: 'a, U: 'static>(&'c self, class: &'b dyn Class, offset: usize) -> Result<&'c mut U> {
+        if let Some(type_id) = class.value() {
+            if type_id == TypeId::of::<U>() {
+                Ok(&mut *self.data.add(offset).cast::<U>())
+            } else {
+                Err(Error::ValueError(format!(
+                    "Cannot cast underlying type {} to {:?}!",
+                    type_name::<U>(),
+                    class,
+                )))
+            }
+        } else {
+            Err(Error::TypeError(format!("Cannot cast untyped class {:?}!", class)))
+        }
+    }
+
+    pub fn cast<U: 'static>(&self) -> Result<&mut U> {
+        unsafe {
+            self.cast_at(self.class.borrow(), 0)
+        }
+    }
+
+    pub fn attr<'b>(&'b self, name: &str) -> Result<WriteView<'a, 'b>> {
+        WriteView::of(self).attr(name)
+    }
+
+    pub fn item<'b>(&'b self, index: usize) -> Result<WriteView<'a, 'b>> {
+        WriteView::of(self).item(index)
+    }
+
+    pub fn through<'b>(&'b self, lens: &View) -> Result<WriteView<'a, 'b>> {
+        WriteView::apply(lens, self)
     }
 }
 
@@ -127,15 +143,5 @@ impl Drop for Instance {
         unsafe {
             dealloc(*self.data.write().unwrap(), self.class.layout());
         }
-    }
-}
-
-impl Viewable for Arc<Instance> {
-    fn attr(self, name: &str) -> Result<View> {
-        View::of(self).attr(name)
-    }
-
-    fn item(self, index: usize) -> Result<View> {
-        View::of(self).item(index)
     }
 }

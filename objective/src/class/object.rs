@@ -1,4 +1,6 @@
-use crate::class::Class;
+use crate::class::id::Id;
+use crate::class::lens::{Lens, LensAccessor};
+use crate::class::{Class, Metaclass, Unique};
 use crate::error::{Error, Result};
 use std::alloc::Layout;
 use std::collections::HashMap;
@@ -11,8 +13,8 @@ pub struct Member {
     pub offset: usize,
 }
 
-#[derive(Clone)]
 pub struct ObjectClass {
+    id: Id,
     pub name: String,
     pub base: Option<Arc<dyn Class>>,
     members: Vec<Member>,
@@ -23,11 +25,60 @@ pub struct ObjectClass {
 impl ObjectClass {
     pub fn new(builder: Builder) -> Self {
         ObjectClass {
+            id: Id::new(),
             name: builder.name,
             base: builder.base,
             members: builder.members,
             lookup: builder.lookup,
             size: builder.size,
+        }
+    }
+}
+
+impl Unique for ObjectClass {
+    fn id(&self) -> &Id {
+        &self.id
+    }
+}
+
+impl std::fmt::Debug for ObjectClass {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}", self.name)
+    }
+}
+
+unsafe impl LensAccessor for ObjectClass {
+    fn attr(&self, name: &str) -> Result<Lens> {
+        if let Some(member_index) = self.lookup.get(name) {
+            // Constructed so every key is always a valid index, immutable.
+            unsafe {
+                let member = self.members.get_unchecked(*member_index);
+                Ok(Lens { class: member.class.clone(), offset: member.offset })
+            }
+        } else {
+            Err(Error::AttributeError(format!(
+                "Class {:?} has no attribute {}", self, name
+            )))
+        }
+    }
+}
+
+unsafe impl Metaclass for ObjectClass {
+    unsafe fn construct(&self, data: *mut u8) {
+        for member in self.members.iter() {
+            unsafe {
+                let address = data.add(member.offset);
+                member.class.construct(address);
+            }
+        }
+    }
+
+    unsafe fn destroy(&self, data: *mut u8) {
+        for member in self.members.iter().rev() {
+            unsafe {
+                let address = data.add(member.offset);
+                member.class.destroy(address);
+            }
         }
     }
 }
@@ -53,42 +104,6 @@ unsafe impl Class for ObjectClass {
         // Needs to be a power of two
         // TODO: use std::ptr::Alignment when stable
         Layout::from_size_align(self.size, self.align()).unwrap()
-    }
-
-    fn name(&self) -> &str {
-        self.name.as_ref()
-    }
-
-    unsafe fn construct(&self, data: *mut u8) {
-        for member in self.members.iter() {
-            unsafe {
-                let address = data.add(member.offset);
-                member.class.construct(address);
-            }
-        }
-    }
-
-    unsafe fn destroy(&self, data: *mut u8) {
-        for member in self.members.iter().rev() {
-            unsafe {
-                let address = data.add(member.offset);
-                member.class.destroy(address);
-            }
-        }
-    }
-
-    fn attr(&self, name: &str) -> Result<(Arc<dyn Class>, usize)> {
-        if let Some(member_index) = self.lookup.get(name) {
-            // Constructed so every key is always a valid index, immutable.
-            unsafe {
-                let member = self.members.get_unchecked(*member_index);
-                Ok((member.class.clone(), member.offset))
-            }
-        } else {
-            Err(Error::AttributeError(format!(
-                "Class {} has no attribute {}", self.name(), name
-            )))
-        }
     }
 }
 
