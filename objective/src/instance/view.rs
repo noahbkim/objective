@@ -1,9 +1,7 @@
 use crate::class::lens::Lens;
 use crate::class::Class;
-use crate::error::TypeError;
-use crate::instance::{read, write, Instance};
-use std::borrow::Borrow;
-use std::sync::Arc;
+use crate::instance::{Instance, Read, Write};
+use std::sync::{Arc, PoisonError};
 
 #[derive(Clone)]
 pub struct View {
@@ -41,15 +39,15 @@ impl View {
         }
     }
 
-    pub fn read<U: 'static>(&self) -> Result<&U, TypeError> {
+    pub fn read(&self) -> Result<Read, PoisonError<Read>> {
         unsafe {
-            read(self.instance.borrow(), self.class.borrow(), self.offset)
+            self.instance.read_at(self.class.clone(), self.offset)
         }
     }
 
-    pub fn write<U: 'static>(&mut self) -> Result<&mut U, TypeError> {
+    pub fn write(&mut self) -> Result<Write, PoisonError<Write>> {
         unsafe {
-            write(self.instance.borrow(), self.class.borrow(), self.offset)
+            self.instance.write_at(self.class.clone(), self.offset)
         }
     }
 }

@@ -5,59 +5,57 @@ use crate::error::TypeError;
 use crate::instance::view::{View, Viewable};
 use std::alloc::{alloc, dealloc};
 use std::any::{type_name, TypeId};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard};
 
-unsafe fn read<'a, U: 'static>(
-    instance: &'a Instance,
-    class: &'a dyn Class,
+pub struct Read<'a> {
+    class: Arc<dyn Class>,
+    guard: RwLockReadGuard<'a, *mut u8>,
     offset: usize,
-) -> Result<&'a U, TypeError> {
-    if let Some(type_id) = class.id() {
-        if type_id == TypeId::of::<U>() {
-            unsafe {
-                let data = instance.data.read().unwrap();
-                // TODO: This is UB; RwLockReadGuard is needed to properly manage the state of the data
-                Ok(&*data.add(offset).cast::<U>())
+}
+
+impl<'a> Read<'a> {
+    pub fn cast<U: 'static>(&self) -> Result<&U, TypeError> {
+        if let Some(type_id) = unsafe { self.class.id() } {
+            if type_id == TypeId::of::<U>() {
+                unsafe {
+                    Ok(&*self.guard.add(self.offset).cast::<U>())
+                }
+            } else {
+                Err(TypeError::new(format!(
+                    "Cannot cast underlying type {} to {}!", type_name::<U>(), self.class.name(),
+                )))
             }
         } else {
             Err(TypeError::new(format!(
-                "Cannot cast underlying type {} to {}!",
-                type_name::<U>(),
-                class.name(),
+                "Cannot cast untyped class {}!", self.class.name()
             )))
         }
-    } else {
-        Err(TypeError::new(format!(
-            "Cannot cast untyped class {}!",
-            class.name(),
-        )))
     }
 }
 
-unsafe fn write<'a, U: 'static>(
-    instance: &'a Instance,
-    class: &'a dyn Class,
+pub struct Write<'a>{
+    class: Arc<dyn Class>,
+    guard: RwLockWriteGuard<'a, *mut u8>,
     offset: usize,
-) -> Result<&'a mut U, TypeError> {
-    // Invariant: construct() must have been called before now
-    if let Some(type_id) = unsafe { class.id() } {
-        if type_id == TypeId::of::<U>() {
-            unsafe {
-                let data = instance.data.read().unwrap();
-                Ok(&mut *data.add(offset).cast::<U>())
+}
+
+impl<'a> Write<'a> {
+    pub fn cast<U: 'static>(&self) -> Result<&mut U, TypeError> {
+        if let Some(type_id) = unsafe { self.class.id() } {
+            if type_id == TypeId::of::<U>() {
+                unsafe {
+                    Ok(&mut *self.guard.add(self.offset).cast::<U>())
+                }
+            } else {
+                Err(TypeError::new(format!(
+                    "Cannot cast underlying type {} to {}!", type_name::<U>(), self.class.name(),
+                )))
             }
         } else {
             Err(TypeError::new(format!(
-                "Cannot cast underlying type {} to {}!",
-                type_name::<U>(),
-                class.name(),
+                "Cannot cast untyped class {}!", self.class.name()
             )))
         }
-    } else {
-        Err(TypeError::new(format!(
-            "Cannot cast untyped class {}!",
-            class.name(),
-        )))
     }
 }
 
@@ -80,47 +78,45 @@ impl Instance {
         }
     }
 
-    pub fn read<U: 'static>(&self) -> Result<&U, TypeError> {
-        if let Some(type_id) = unsafe { self.class.id() } {
-            if type_id == TypeId::of::<U>() {
-                unsafe {
-                    let data = self.data.read().unwrap();
-                    Ok(&*data.cast::<U>())
-                }
-            } else {
-                Err(TypeError::new(format!(
-                    "Cannot cast underlying type {} to {}!",
-                    type_name::<U>(),
-                    self.class.name(),
-                )))
-            }
-        } else {
-            Err(TypeError::new(format!(
-                "Cannot cast untyped class {}!",
-                self.class.name(),
-            )))
+    unsafe fn read_at(
+        &self,
+        class: Arc<dyn Class>,
+        offset: usize,
+    ) -> Result<Read, PoisonError<Read>> {
+        match self.data.read() {
+            Ok(guard) => Ok(Read { class, guard, offset }),
+            Err(error) => Err(PoisonError::new(Read {
+                class,
+                guard: error.into_inner(),
+                offset,
+            })),
         }
     }
 
-    pub fn write<U: 'static>(&mut self) -> Result<&mut U, TypeError> {
-        if let Some(type_id) = unsafe { self.class.id() } {
-            if type_id == TypeId::of::<U>() {
-                unsafe {
-                    let data = self.data.read().unwrap();
-                    Ok(&mut *data.cast::<U>())
-                }
-            } else {
-                Err(TypeError::new(format!(
-                    "Cannot cast underlying type {} to {}!",
-                    type_name::<U>(),
-                    self.class.name(),
-                )))
-            }
-        } else {
-            Err(TypeError::new(format!(
-                "Cannot cast untyped class {}!",
-                self.class.name(),
-            )))
+    pub fn read(&self) -> Result<Read, PoisonError<Read>> {
+        unsafe {
+            self.read_at(self.class.clone(), 0)
+        }
+    }
+
+    unsafe fn write_at(
+        &self,
+        class: Arc<dyn Class>,
+        offset: usize,
+    ) -> Result<Write, PoisonError<Write>> {
+        match self.data.write() {
+            Ok(guard) => Ok(Write { class, guard, offset }),
+            Err(error) => Err(PoisonError::new(Write {
+                class,
+                guard: error.into_inner(),
+                offset,
+            })),
+        }
+    }
+
+    pub fn write(&self) -> Result<Write, PoisonError<Write>> {
+        unsafe {
+            self.write_at(self.class.clone(), 0)
         }
     }
 }

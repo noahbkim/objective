@@ -50,3 +50,20 @@ impl fmt::Display for TypeError {
         write!(formatter, "TypeError: {}", self.message)
     }
 }
+
+#[derive(Debug)]
+pub struct ValueError {
+    message: String,
+}
+
+impl ValueError {
+    pub fn new(message: String) -> Self {
+        Self { message }
+    }
+}
+
+impl fmt::Display for ValueError {
+    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(formatter, "ValueError: {}", self.message)
+    }
+}
