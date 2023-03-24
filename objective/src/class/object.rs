@@ -1,4 +1,5 @@
 use crate::class::Class;
+use crate::error::{Error, Result};
 use std::alloc::Layout;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -76,15 +77,17 @@ unsafe impl Class for ObjectClass {
         }
     }
 
-    fn attr(&self, name: &str) -> Option<(Arc<dyn Class>, usize)> {
+    fn attr(&self, name: &str) -> Result<(Arc<dyn Class>, usize)> {
         if let Some(member_index) = self.lookup.get(name) {
             // Constructed so every key is always a valid index, immutable.
             unsafe {
                 let member = self.members.get_unchecked(*member_index);
-                Some((member.class.clone(), member.offset))
+                Ok((member.class.clone(), member.offset))
             }
         } else {
-            None
+            Err(Error::AttributeError(format!(
+                "Class {} has no attribute {}", self.name(), name
+            )))
         }
     }
 }

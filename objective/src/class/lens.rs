@@ -1,6 +1,7 @@
 use crate::class::Class;
 use crate::instance::view::View;
 use crate::instance::Instance;
+use crate::error::Result;
 use std::sync::Arc;
 
 #[derive(Clone)]
@@ -27,22 +28,22 @@ impl Lens {
         }
     }
 
-    pub fn apply(&self, instance: Arc<Instance>) -> Option<View> {
+    pub fn apply(&self, instance: Arc<Instance>) -> Result<View> {
         View::apply(self, instance)
     }
 }
 
 trait Focal {
-    fn attr(self, name: &str) -> Option<Lens>;
-    fn item(self, index: usize) -> Option<Lens>;
+    fn attr(self, name: &str) -> Result<Lens>;
+    fn item(self, index: usize) -> Result<Lens>;
 }
 
 impl Focal for Lens {
-    fn attr(self, name: &str) -> Option<Lens> {
+    fn attr(self, name: &str) -> Result<Lens> {
         self.class.attr(name).map(|part| self.zoom(part))
     }
 
-    fn item(self, index: usize) -> Option<Lens> {
+    fn item(self, index: usize) -> Result<Lens> {
         self.class.item(index).map(|part| self.zoom(part))
     }
 }

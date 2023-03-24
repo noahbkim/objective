@@ -3,6 +3,7 @@ pub mod lens;
 pub mod object;
 pub mod value;
 
+use crate::error::{Error, Result};
 use std::alloc::Layout;
 use std::any::TypeId;
 use std::sync::Arc;
@@ -21,10 +22,11 @@ pub unsafe trait Class {
     unsafe fn construct(&self, data: *mut u8);
     unsafe fn destroy(&self, data: *mut u8);
 
-    fn attr(&self, _name: &str) -> Option<(Arc<dyn Class>, usize)> {
-        None
+    fn attr(&self, _name: &str) -> Result<(Arc<dyn Class>, usize)> {
+        Err(Error::TypeError(format!("Class {} does not support attribute access!", self.name())))
     }
-    fn item(&self, _index: usize) -> Option<(Arc<dyn Class>, usize)> {
-        None
+
+    fn item(&self, _index: usize) -> Result<(Arc<dyn Class>, usize)> {
+        Err(Error::TypeError(format!("Class {} does not support index access!", self.name())))
     }
 }

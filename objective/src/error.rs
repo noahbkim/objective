@@ -1,69 +1,24 @@
-use std::fmt;
-
 #[derive(Debug)]
-pub struct AttributeError {
-    message: String,
+pub enum Error {
+    AccessError(String),
+    TypeError(String),
+    AttributeError(String),
+    IndexError(String),
+    ValueError(String),
 }
 
-impl AttributeError {
-    pub fn new(message: String) -> Self {
-        Self { message }
+impl std::fmt::Display for Error {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "{}", match self {
+            Error::AccessError(message) => message,
+            Error::TypeError(message) => message,
+            Error::AttributeError(message) => message,
+            Error::IndexError(message) => message,
+            Error::ValueError(message) => message,
+        })
     }
 }
 
-impl fmt::Display for AttributeError {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "AttributeError: {}", self.message)
-    }
-}
+impl std::error::Error for Error {}
 
-#[derive(Debug)]
-pub struct IndexError {
-    message: String,
-}
-
-impl IndexError {
-    pub fn new(message: String) -> Self {
-        Self { message }
-    }
-}
-
-impl fmt::Display for IndexError {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "IndexError: {}", self.message)
-    }
-}
-
-#[derive(Debug)]
-pub struct TypeError {
-    message: String,
-}
-
-impl TypeError {
-    pub fn new(message: String) -> Self {
-        Self { message }
-    }
-}
-
-impl fmt::Display for TypeError {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "TypeError: {}", self.message)
-    }
-}
-
-#[derive(Debug)]
-pub struct ValueError {
-    message: String,
-}
-
-impl ValueError {
-    pub fn new(message: String) -> Self {
-        Self { message }
-    }
-}
-
-impl fmt::Display for ValueError {
-    fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "ValueError: {}", self.message)
-    }
-}
+pub type Result<T> = std::result::Result<T, Error>;

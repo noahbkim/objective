@@ -1,7 +1,7 @@
 pub mod view;
 
 use crate::class::Class;
-use crate::error::TypeError;
+use crate::error::{Error, Result};
 use crate::instance::view::{View, Viewable};
 use std::alloc::{alloc, dealloc};
 use std::any::{type_name, TypeId};
@@ -14,19 +14,19 @@ pub struct Read<'a> {
 }
 
 impl<'a> Read<'a> {
-    pub fn cast<U: 'static>(&self) -> Result<&U, TypeError> {
+    pub fn cast<U: 'static>(&self) -> Result<&U> {
         if let Some(type_id) = unsafe { self.class.id() } {
             if type_id == TypeId::of::<U>() {
                 unsafe {
                     Ok(&*self.guard.add(self.offset).cast::<U>())
                 }
             } else {
-                Err(TypeError::new(format!(
+                Err(Error::ValueError(format!(
                     "Cannot cast underlying type {} to {}!", type_name::<U>(), self.class.name(),
                 )))
             }
         } else {
-            Err(TypeError::new(format!(
+            Err(Error::TypeError(format!(
                 "Cannot cast untyped class {}!", self.class.name()
             )))
         }
@@ -40,19 +40,19 @@ pub struct Write<'a>{
 }
 
 impl<'a> Write<'a> {
-    pub fn cast<U: 'static>(&self) -> Result<&mut U, TypeError> {
+    pub fn cast<U: 'static>(&self) -> Result<&mut U> {
         if let Some(type_id) = unsafe { self.class.id() } {
             if type_id == TypeId::of::<U>() {
                 unsafe {
                     Ok(&mut *self.guard.add(self.offset).cast::<U>())
                 }
             } else {
-                Err(TypeError::new(format!(
+                Err(Error::ValueError(format!(
                     "Cannot cast underlying type {} to {}!", type_name::<U>(), self.class.name(),
                 )))
             }
         } else {
-            Err(TypeError::new(format!(
+            Err(Error::TypeError(format!(
                 "Cannot cast untyped class {}!", self.class.name()
             )))
         }
@@ -82,7 +82,7 @@ impl Instance {
         &self,
         class: Arc<dyn Class>,
         offset: usize,
-    ) -> Result<Read, PoisonError<Read>> {
+    ) -> std::result::Result<Read, PoisonError<Read>> {
         match self.data.read() {
             Ok(guard) => Ok(Read { class, guard, offset }),
             Err(error) => Err(PoisonError::new(Read {
@@ -93,7 +93,7 @@ impl Instance {
         }
     }
 
-    pub fn read(&self) -> Result<Read, PoisonError<Read>> {
+    pub fn read(&self) -> std::result::Result<Read, PoisonError<Read>> {
         unsafe {
             self.read_at(self.class.clone(), 0)
         }
@@ -103,7 +103,7 @@ impl Instance {
         &self,
         class: Arc<dyn Class>,
         offset: usize,
-    ) -> Result<Write, PoisonError<Write>> {
+    ) -> std::result::Result<Write, PoisonError<Write>> {
         match self.data.write() {
             Ok(guard) => Ok(Write { class, guard, offset }),
             Err(error) => Err(PoisonError::new(Write {
@@ -114,7 +114,7 @@ impl Instance {
         }
     }
 
-    pub fn write(&self) -> Result<Write, PoisonError<Write>> {
+    pub fn write(&self) -> std::result::Result<Write, PoisonError<Write>> {
         unsafe {
             self.write_at(self.class.clone(), 0)
         }
@@ -131,11 +131,11 @@ impl Drop for Instance {
 }
 
 impl Viewable for Arc<Instance> {
-    fn attr(self, name: &str) -> Option<View> {
+    fn attr(self, name: &str) -> Result<View> {
         View::of(self).attr(name)
     }
 
-    fn item(self, index: usize) -> Option<View> {
+    fn item(self, index: usize) -> Result<View> {
         View::of(self).item(index)
     }
 }
