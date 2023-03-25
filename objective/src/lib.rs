@@ -1,15 +1,16 @@
+pub mod accessor;
 pub mod class;
-pub mod instance;
 pub mod error;
+pub mod instance;
 
 #[cfg(test)]
 mod tests {
-    use crate::class::Class;
-    use crate::class::object::{ObjectClass, Builder};
+    use crate::accessor::Accessor;
+    use crate::class::object::{Builder, ObjectClass};
     use crate::class::value::ValueClass;
+    use crate::class::Class;
     use crate::instance::Instance;
     use std::sync::Arc;
-    use crate::class::view::ViewAccessor;
 
     #[test]
     fn it_works() {
@@ -34,9 +35,30 @@ mod tests {
 
         let foo_class = Arc::new(ObjectClass::new(builder));
         let foo = Arc::new(Instance::new(foo_class.clone()));
-        assert_eq!(*foo.read().unwrap().attr("a").unwrap().cast::<u64>().unwrap(), 0);
-        *foo.write().unwrap().attr("a").unwrap().cast::<u64>().unwrap() = 69;
-        assert_eq!(*foo.read().unwrap().attr("a").unwrap().cast::<u64>().unwrap(), 69);
+        assert_eq!(
+            *foo.read()
+                .unwrap()
+                .attr("a")
+                .unwrap()
+                .cast::<u64>()
+                .unwrap(),
+            0
+        );
+        *foo.write()
+            .unwrap()
+            .attr("a")
+            .unwrap()
+            .cast::<u64>()
+            .unwrap() = 69;
+        assert_eq!(
+            *foo.read()
+                .unwrap()
+                .attr("a")
+                .unwrap()
+                .cast::<u64>()
+                .unwrap(),
+            69
+        );
 
         {
             let write = foo.write().unwrap();
@@ -51,6 +73,14 @@ mod tests {
         }
 
         let c_lens = foo_class.attr("c").unwrap();
-        assert_eq!(*foo.read().unwrap().through(&c_lens).unwrap().cast::<i32>().unwrap(), -420);
+        assert_eq!(
+            *foo.read()
+                .unwrap()
+                .through(&c_lens)
+                .unwrap()
+                .cast::<i32>()
+                .unwrap(),
+            -420
+        );
     }
 }

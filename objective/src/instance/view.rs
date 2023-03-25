@@ -1,10 +1,10 @@
-use crate::class::Class;
+use crate::class::lens::Lens;
 use crate::class::view::View;
+use crate::class::Class;
 use crate::error::{Error, Result};
 use crate::instance::{InstanceReadGuard, InstanceWriteGuard};
 use std::borrow::Borrow;
-use std::sync::{Arc};
-use crate::class::lens::Lens;
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct ReadView<'a, 'b: 'a> {
@@ -22,7 +22,10 @@ impl<'a, 'b: 'a> ReadView<'a, 'b> {
         }
     }
 
-    pub fn apply<'c, 'd: 'c>(lens: &View, instance: &'d InstanceReadGuard<'c>) -> Result<ReadView<'c, 'd>> {
+    pub fn apply<'c, 'd: 'c>(
+        lens: &View,
+        instance: &'d InstanceReadGuard<'c>,
+    ) -> Result<ReadView<'c, 'd>> {
         if lens.origin.id() == instance.class.id() {
             Ok(ReadView {
                 instance,
@@ -32,8 +35,7 @@ impl<'a, 'b: 'a> ReadView<'a, 'b> {
         } else {
             Err(Error::TypeError(format!(
                 "View of type {:?} cannot be applied to instance of type {:?}",
-                lens.origin,
-                instance.class
+                lens.origin, instance.class
             )))
         }
     }
@@ -92,7 +94,10 @@ impl<'a, 'b: 'a> WriteView<'a, 'b> {
         }
     }
 
-    pub fn apply<'c, 'd: 'c>(lens: &View, instance: &'d InstanceWriteGuard<'c>) -> Result<WriteView<'c, 'd>> {
+    pub fn apply<'c, 'd: 'c>(
+        lens: &View,
+        instance: &'d InstanceWriteGuard<'c>,
+    ) -> Result<WriteView<'c, 'd>> {
         if std::ptr::eq(lens.origin.as_ref(), instance.class.as_ref()) {
             Ok(WriteView {
                 instance,
@@ -102,8 +107,7 @@ impl<'a, 'b: 'a> WriteView<'a, 'b> {
         } else {
             Err(Error::TypeError(format!(
                 "View of type {:?} cannot be applied to instance of type {:?}",
-                lens.origin,
-                instance.class
+                lens.origin, instance.class
             )))
         }
     }

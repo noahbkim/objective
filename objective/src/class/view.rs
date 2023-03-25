@@ -1,4 +1,5 @@
-use crate::class::lens::{Lens, LensAccessor};
+use crate::accessor::{Accessor, IntoAccessor};
+use crate::class::lens::Lens;
 use crate::class::Class;
 use crate::error::Result;
 use std::sync::Arc;
@@ -19,14 +20,6 @@ impl View {
         }
     }
 
-    unsafe fn new(origin: Arc<dyn Class>, lens: Lens) -> Self {
-        View {
-            origin,
-            class: lens.class,
-            offset: lens.offset,
-        }
-    }
-
     unsafe fn access(self, lens: Lens) -> Self {
         View {
             origin: self.origin,
@@ -36,56 +29,42 @@ impl View {
     }
 }
 
-trait MoveViewAccessor {
-    fn attr(self, name: &str) -> Result<View>;
-    fn item(self, index: usize) -> Result<View>;
-}
-
-impl MoveViewAccessor for View {
+unsafe impl IntoAccessor<View> for View {
     fn attr(self, name: &str) -> Result<View> {
-        LensAccessor::attr(&*self.class, name).map(|lens| unsafe { self.access(lens) })
+        Accessor::<Lens>::attr(&*self.class, name).map(|lens| unsafe { self.access(lens) })
     }
 
     fn item(self, index: usize) -> Result<View> {
-        LensAccessor::item(&*self.class, index).map(|lens| unsafe { self.access(lens) })
+        Accessor::<Lens>::item(&*self.class, index).map(|lens| unsafe { self.access(lens) })
     }
 }
 
-impl MoveViewAccessor for Result<View> {
+unsafe impl IntoAccessor<View> for Result<View> {
     fn attr(self, name: &str) -> Result<View> {
-        self.and_then(|view| {
-            LensAccessor::attr(&*view.class, name).map(|lens| unsafe { view.access(lens) })
-        })
+        self.and_then(|view| view.attr(name))
     }
 
     fn item(self, index: usize) -> Result<View> {
-        self.and_then(|view| {
-            LensAccessor::item(&*view.class, index).map(|lens| unsafe { view.access(lens) })
-        })
+        self.and_then(|view| view.item(index))
     }
 }
 
-pub trait ViewAccessor {
-    fn attr(&self, name: &str) -> Result<View>;
-    fn item(&self, index: usize) -> Result<View>;
-}
-
-impl ViewAccessor for Arc<dyn Class> {
+unsafe impl Accessor<View> for Arc<dyn Class> {
     fn attr(&self, name: &str) -> Result<View> {
-        LensAccessor::attr(&**self, name).map(|lens| unsafe { View::new(self.clone(), lens) })
+        View::of(self.clone()).attr(name)
     }
 
     fn item(&self, index: usize) -> Result<View> {
-        LensAccessor::item(&**self, index).map(|lens| unsafe { View::new(self.clone(), lens) })
+        View::of(self.clone()).item(index)
     }
 }
 
-impl<T: Class + 'static> ViewAccessor for Arc<T> {
+unsafe impl<T: Class + 'static> Accessor<View> for Arc<T> {
     fn attr(&self, name: &str) -> Result<View> {
-        LensAccessor::attr(&**self, name).map(|lens| unsafe { View::new(self.clone(), lens) })
+        View::of(self.clone()).attr(name)
     }
 
     fn item(&self, index: usize) -> Result<View> {
-        LensAccessor::item(&**self, index).map(|lens| unsafe { View::new(self.clone(), lens) })
+        View::of(self.clone()).item(index)
     }
 }

@@ -55,6 +55,15 @@ impl Instance {
     }
 }
 
+impl Drop for Instance {
+    fn drop(&mut self) {
+        // Invariant: is not null, has layout of self.class.layout()
+        unsafe {
+            dealloc(*self.data.write().unwrap(), self.class.layout());
+        }
+    }
+}
+
 pub struct InstanceReadGuard<'a> {
     class: Arc<dyn Class>,
     data: RwLockReadGuard<'a, *mut u8>,
@@ -134,14 +143,5 @@ impl<'a> InstanceWriteGuard<'a> {
 
     pub fn through<'b>(&'b self, lens: &View) -> Result<WriteView<'a, 'b>> {
         WriteView::apply(lens, self)
-    }
-}
-
-impl Drop for Instance {
-    fn drop(&mut self) {
-        // Invariant: is not null, has layout of self.class.layout()
-        unsafe {
-            dealloc(*self.data.write().unwrap(), self.class.layout());
-        }
     }
 }

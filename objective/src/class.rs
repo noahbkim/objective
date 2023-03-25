@@ -1,11 +1,12 @@
 pub mod array;
+pub mod id;
 pub mod lens;
 pub mod object;
 pub mod value;
 pub mod view;
-pub mod id;
 
-use crate::class::lens::LensAccessor;
+use crate::accessor::Accessor;
+use crate::class::lens::Lens;
 use crate::class::id::Id;
 use std::alloc::Layout;
 use std::any::TypeId;
@@ -23,7 +24,7 @@ pub unsafe trait Metaclass {
 //   - construct() expects a buffer with length >= size()
 //   - construct() guarantees that data may be cast as the corresponding T of id()
 //   - destroy() expects that data has been constructed() by this type
-pub unsafe trait Class: Metaclass + LensAccessor + Unique {
+pub unsafe trait Class: Metaclass + Accessor<Lens> + Unique + std::fmt::Debug {
     fn size(&self) -> usize;
     fn align(&self) -> usize;
     fn layout(&self) -> Layout;
