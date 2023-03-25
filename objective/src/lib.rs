@@ -5,7 +5,7 @@ pub mod instance;
 
 #[cfg(test)]
 mod tests {
-    use crate::accessor::Accessor;
+    use crate::accessor::{Accessor, Cast, MutableCast};
     use crate::class::object::{Builder, ObjectClass};
     use crate::class::value::ValueClass;
     use crate::class::Class;

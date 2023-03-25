@@ -26,30 +26,12 @@ impl Instance {
         }
     }
 
-    pub fn read(&self) -> std::result::Result<InstanceReadGuard, PoisonError<InstanceReadGuard>> {
-        match self.data.read() {
-            Ok(data) => Ok(unsafe { InstanceReadGuard::new(self.class.clone(), data) }),
-            Err(error) => Err(unsafe {
-                PoisonError::new(InstanceReadGuard::new(
-                    self.class.clone(),
-                    error.into_inner(),
-                ))
-            }),
-        }
+    pub fn read(&self) -> Result<InstanceReadGuard, PoisonError<InstanceReadGuard>> {
+        InstanceReadGuard::acquire(self)
     }
 
-    pub fn write(
-        &self,
-    ) -> std::result::Result<InstanceWriteGuard, PoisonError<InstanceWriteGuard>> {
-        match self.data.write() {
-            Ok(data) => Ok(unsafe { InstanceWriteGuard::new(self.class.clone(), data) }),
-            Err(error) => Err(unsafe {
-                PoisonError::new(InstanceWriteGuard::new(
-                    self.class.clone(),
-                    error.into_inner(),
-                ))
-            }),
-        }
+    pub fn write(&self) -> Result<InstanceWriteGuard, PoisonError<InstanceWriteGuard>> {
+        InstanceWriteGuard::acquire(self)
     }
 }
 
