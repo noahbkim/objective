@@ -6,8 +6,8 @@ pub mod instance;
 #[cfg(test)]
 mod tests {
     use crate::accessor::{Accessor, Cast, IntoAccessor, MutableCast};
-    use crate::class::object::{Builder, Object};
     use crate::class::array::Array;
+    use crate::class::object::{Builder, Object};
     use crate::class::value::Value;
     use crate::class::Class;
     use crate::instance::Instance;
@@ -36,6 +36,7 @@ mod tests {
 
         let foo_class = Arc::new(Object::new(builder));
         let foo = Arc::new(Instance::new(foo_class.clone()));
+
         assert_eq!(
             *foo.read()
                 .unwrap()
@@ -87,10 +88,51 @@ mod tests {
         let foo_array_class: Arc<dyn Class> = Arc::new(Array::new(foo_class.clone(), 3));
         let foo_array = Arc::new(Instance::new(foo_array_class));
 
-        assert_eq!(*foo_array.read().unwrap().item(0).attr("a").unwrap().cast::<u64>().unwrap(), 0);
-        *foo_array.write().unwrap().item(2).attr("b").unwrap().cast::<i32>().unwrap() = 300;
-        *foo_array.write().unwrap().item(1).attr("b").unwrap().cast::<i32>().unwrap() = 200;
-        *foo_array.write().unwrap().item(0).attr("b").unwrap().cast::<i32>().unwrap() = 100;
-        assert_eq!(*foo_array.read().unwrap().item(2).attr("b").unwrap().cast::<i32>().unwrap(), 300);
+        assert_eq!(
+            *foo_array
+                .read()
+                .unwrap()
+                .item(0)
+                .attr("a")
+                .unwrap()
+                .cast::<u64>()
+                .unwrap(),
+            0
+        );
+        *foo_array
+            .write()
+            .unwrap()
+            .item(2)
+            .attr("b")
+            .unwrap()
+            .cast::<i32>()
+            .unwrap() = 300;
+        *foo_array
+            .write()
+            .unwrap()
+            .item(1)
+            .attr("b")
+            .unwrap()
+            .cast::<i32>()
+            .unwrap() = 200;
+        *foo_array
+            .write()
+            .unwrap()
+            .item(0)
+            .attr("b")
+            .unwrap()
+            .cast::<i32>()
+            .unwrap() = 100;
+        assert_eq!(
+            *foo_array
+                .read()
+                .unwrap()
+                .item(2)
+                .attr("b")
+                .unwrap()
+                .cast::<i32>()
+                .unwrap(),
+            300
+        );
     }
 }
