@@ -1,6 +1,6 @@
+use crate::accessor::Accessor;
 use crate::class::id::Id;
 use crate::class::lens::Lens;
-use crate::accessor::Accessor;
 use crate::class::{Class, Metaclass, Unique};
 use crate::error::{Error, Result};
 use std::alloc::Layout;
@@ -54,17 +54,24 @@ unsafe impl Accessor<Lens> for ObjectClass {
             // Constructed so every key is always a valid index, immutable.
             unsafe {
                 let member = self.members.get_unchecked(*member_index);
-                Ok(Lens { class: member.class.clone(), offset: member.offset })
+                Ok(Lens {
+                    class: member.class.clone(),
+                    offset: member.offset,
+                })
             }
         } else {
             Err(Error::AttributeError(format!(
-                "Class {:?} has no attribute {}", self, name
+                "Class {:?} has no attribute {}",
+                self, name
             )))
         }
     }
 
     fn item(&self, _: usize) -> Result<Lens> {
-        Err(Error::TypeError(format!("Object class {:?} does not support index access!", self)))
+        Err(Error::TypeError(format!(
+            "Object class {:?} does not support index access!",
+            self
+        )))
     }
 }
 

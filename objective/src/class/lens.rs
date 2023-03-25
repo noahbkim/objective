@@ -5,4 +5,3 @@ pub struct Lens {
     pub class: Arc<dyn Class>,
     pub offset: usize,
 }
-

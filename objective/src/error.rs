@@ -8,14 +8,14 @@ pub enum Error {
 }
 
 impl std::fmt::Display for Error {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(formatter, "{}", match self {
-            Error::AccessError(message) => message,
-            Error::TypeError(message) => message,
-            Error::AttributeError(message) => message,
-            Error::IndexError(message) => message,
-            Error::ValueError(message) => message,
-        })
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::AccessError(message) => write!(f, "AccessError: {}", message),
+            Error::TypeError(message) => write!(f, "TypeError: {}", message),
+            Error::AttributeError(message) => write!(f, "AttributeError: {}", message),
+            Error::IndexError(message) => write!(f, "IndexError: {}", message),
+            Error::ValueError(message) => write!(f, "ValueError: {}", message),
+        }
     }
 }
 

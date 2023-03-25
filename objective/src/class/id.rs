@@ -9,6 +9,8 @@ pub struct Id {
 
 impl Id {
     pub fn new() -> Self {
-        Id { value: AUTOINCREMENT.fetch_add(1, Ordering::Relaxed) }
+        Id {
+            value: AUTOINCREMENT.fetch_add(1, Ordering::Relaxed),
+        }
     }
 }

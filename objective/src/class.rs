@@ -6,8 +6,8 @@ pub mod value;
 pub mod view;
 
 use crate::accessor::Accessor;
-use crate::class::lens::Lens;
 use crate::class::id::Id;
+use crate::class::lens::Lens;
 use std::alloc::Layout;
 use std::any::TypeId;
 
@@ -28,5 +28,7 @@ pub unsafe trait Class: Metaclass + Accessor<Lens> + Unique + std::fmt::Debug {
     fn size(&self) -> usize;
     fn align(&self) -> usize;
     fn layout(&self) -> Layout;
-    fn value(&self) -> Option<TypeId> { None }
+    fn value(&self) -> Option<TypeId> {
+        None
+    }
 }
