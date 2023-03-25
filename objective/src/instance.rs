@@ -39,7 +39,14 @@ impl Drop for Instance {
     fn drop(&mut self) {
         // Invariant: is not null, has layout of self.class.layout()
         unsafe {
-            dealloc(*self.data.write().unwrap(), self.class.layout());
+            // TODO: not sure what to do here
+            dealloc(
+                *match self.data.write() {
+                    Ok(data) => data,
+                    Err(error) => error.into_inner()
+                },
+                self.class.layout()
+            );
         }
     }
 }

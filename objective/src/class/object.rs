@@ -14,7 +14,7 @@ pub struct Member {
     pub offset: usize,
 }
 
-pub struct ObjectClass {
+pub struct Object {
     id: Id,
     pub name: String,
     pub base: Option<Arc<dyn Class>>,
@@ -23,9 +23,9 @@ pub struct ObjectClass {
     pub size: usize,
 }
 
-impl ObjectClass {
+impl Object {
     pub fn new(builder: Builder) -> Self {
-        ObjectClass {
+        Object {
             id: Id::new(),
             name: builder.name,
             base: builder.base,
@@ -36,19 +36,19 @@ impl ObjectClass {
     }
 }
 
-impl Unique for ObjectClass {
+impl Unique for Object {
     fn id(&self) -> &Id {
         &self.id
     }
 }
 
-impl std::fmt::Debug for ObjectClass {
+impl std::fmt::Debug for Object {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "{}", self.name)
     }
 }
 
-unsafe impl Accessor<Lens> for ObjectClass {
+unsafe impl Accessor<Lens> for Object {
     fn attr(&self, name: &str) -> Result<Lens> {
         if let Some(member_index) = self.lookup.get(name) {
             // Constructed so every key is always a valid index, immutable.
@@ -61,7 +61,7 @@ unsafe impl Accessor<Lens> for ObjectClass {
             }
         } else {
             Err(Error::AttributeError(format!(
-                "Class {:?} has no attribute {}",
+                "Object of type {:?} has no attribute {}",
                 self, name
             )))
         }
@@ -69,13 +69,13 @@ unsafe impl Accessor<Lens> for ObjectClass {
 
     fn item(&self, _: usize) -> Result<Lens> {
         Err(Error::TypeError(format!(
-            "Object class {:?} does not support index access!",
+            "Object of type {:?} does not support index access!",
             self
         )))
     }
 }
 
-unsafe impl Metaclass for ObjectClass {
+unsafe impl Metaclass for Object {
     unsafe fn construct(&self, data: *mut u8) {
         for member in self.members.iter() {
             unsafe {
@@ -95,7 +95,7 @@ unsafe impl Metaclass for ObjectClass {
     }
 }
 
-unsafe impl Class for ObjectClass {
+unsafe impl Class for Object {
     fn size(&self) -> usize {
         self.size
     }
@@ -147,7 +147,7 @@ impl Builder {
         }
     }
 
-    pub fn new_inherit(name: String, base: Arc<ObjectClass>) -> Self {
+    pub fn new_inherit(name: String, base: Arc<Object>) -> Self {
         Builder {
             name,
             members: base.members.clone(),

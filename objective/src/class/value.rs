@@ -9,33 +9,33 @@ use std::marker::PhantomData;
 use std::mem::{align_of, size_of};
 
 #[derive(Eq, PartialEq)]
-pub struct ValueClass<T> {
+pub struct Value<T> {
     id: Id,
     phantom_data: PhantomData<T>,
 }
 
-impl<T: 'static> ValueClass<T> {
+impl<T: 'static> Value<T> {
     pub fn new() -> Self {
-        return ValueClass {
+        return Value {
             id: Id::new(),
             phantom_data: Default::default(),
         };
     }
 }
 
-impl<T> Unique for ValueClass<T> {
+impl<T> Unique for Value<T> {
     fn id(&self) -> &Id {
         &self.id
     }
 }
 
-impl<T> std::fmt::Debug for ValueClass<T> {
+impl<T> std::fmt::Debug for Value<T> {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(formatter, "{}", type_name::<T>())
     }
 }
 
-unsafe impl<T> Accessor<Lens> for ValueClass<T> {
+unsafe impl<T> Accessor<Lens> for Value<T> {
     fn attr(&self, _: &str) -> Result<Lens> {
         Err(Error::TypeError(format!(
             "Value class {:?} does not support attribute access!",
@@ -51,7 +51,7 @@ unsafe impl<T> Accessor<Lens> for ValueClass<T> {
     }
 }
 
-unsafe impl<T: Default> Metaclass for ValueClass<T> {
+unsafe impl<T: Default> Metaclass for Value<T> {
     unsafe fn construct(&self, data: *mut u8) {
         data.cast::<T>().write(T::default());
     }
@@ -61,7 +61,7 @@ unsafe impl<T: Default> Metaclass for ValueClass<T> {
     }
 }
 
-unsafe impl<T> Class for ValueClass<T>
+unsafe impl<T> Class for Value<T>
 where
     T: Sized + Default + 'static,
 {
